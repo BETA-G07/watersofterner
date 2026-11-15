@@ -1,0 +1,1103 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ion-Exchange Water Softener</title>
+<style>
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; overflow: hidden; background: #e9eef3;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; color: #1d2733; }
+  canvas#gl { display: block; touch-action: none; }
+  .panel { position: absolute; background: rgba(255,255,255,0.92); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+    border: 1px solid rgba(20,40,60,0.08); border-radius: 14px; box-shadow: 0 6px 24px rgba(20,40,60,0.12); }
+  #hud { top: 14px; left: 14px; width: 292px; padding: 14px 14px 12px; max-height: calc(100% - 28px); overflow-y: auto; }
+  #hud h1 { font-size: 15px; margin: 0 0 2px; }
+  #hud .sub { font-size: 11.5px; color: #66758a; margin-bottom: 10px; }
+  .sec { font-size: 11px; font-weight: 700; letter-spacing: .6px; text-transform: uppercase; color: #7a8796; margin: 12px 0 6px; }
+  .modes { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 6px; }
+  button { font: inherit; font-size: 12.5px; font-weight: 600; padding: 8px 6px; border-radius: 9px; border: 1px solid #c9d3dd;
+    background: #fff; color: #1d2733; cursor: pointer; transition: background .15s, border-color .15s, color .15s; }
+  button:hover { background: #f2f6fa; }
+  button:disabled { opacity: .45; cursor: not-allowed; }
+  button.on { background: #1f6fb8; border-color: #1f6fb8; color: #fff; }
+  .row { display: flex; gap: 6px; align-items: center; }
+  .row > * { flex: 1; }
+  .desc { font-size: 12px; color: #3c4a5a; background: #f1f5f9; border-radius: 8px; padding: 8px 9px; margin-top: 8px; line-height: 1.4; }
+  label.sl { display: block; font-size: 12.5px; color: #5b6878; margin-top: 8px; }
+  label.sl b { float: right; color: #1d2733; font-variant-numeric: tabular-nums; }
+  input[type=range] { width: 100%; margin-top: 4px; accent-color: #1f6fb8; }
+  .kv { display: flex; justify-content: space-between; font-size: 12.5px; margin: 4px 0; }
+  .kv span { color: #5b6878; }
+  .kv b { font-variant-numeric: tabular-nums; }
+  .valves { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+  .vbtn { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; text-align: left; padding: 7px 8px; position: relative; }
+  .vbtn span { font-size: 12px; padding-right: 12px; }
+  .vbtn b { font-size: 11px; font-weight: 700; color: #c33; }
+  .vbtn.open b { color: #1c8c4a; }
+  .vbtn .dot { position: absolute; top: 9px; right: 8px; }
+  .vbtn.open .dot { background: #22a559; }
+    .dot { width: 9px; height: 9px; border-radius: 50%; background: #c33; flex: none; }
+  .dot.open { background: #22a559; }
+  .bar { height: 8px; background: #dbe3eb; border-radius: 6px; overflow: hidden; margin: 2px 0 4px; }
+  .bar i { display: block; height: 100%; width: 100%; border-radius: 6px; }
+  label.chk { display: flex; align-items: center; gap: 7px; font-size: 12.5px; color: #3c4a5a; margin-top: 10px; cursor: pointer; }
+  label.chk input { accent-color: #1f6fb8; margin: 0; }
+  #warn { font-size: 12px; font-weight: 600; color: #b5471b; margin-top: 6px; min-height: 0; }
+  #ionPanel { right: 14px; bottom: 14px; width: 300px; padding: 10px 10px 8px; }
+  #ionPanel h2 { font-size: 12.5px; margin: 0 0 4px; }
+  #ion { width: 280px; height: 210px; display: block; }
+  #legend { font-size: 11px; color: #5b6878; display: flex; gap: 10px; flex-wrap: wrap; margin-top: 4px; }
+  #legend span::before { content: ""; display: inline-block; width: 9px; height: 9px; border-radius: 50%; margin-right: 4px; vertical-align: -1px; background: var(--c); }
+  #hint { position: absolute; top: 14px; right: 14px; font-size: 11.5px; color: #5b6878; background: rgba(255,255,255,0.8);
+    padding: 6px 10px; border-radius: 16px; pointer-events: none; }
+  .tag { position: absolute; left: 0; top: 0; font-size: 10.5px; font-weight: 600; color: #1d2733; background: rgba(255,255,255,0.92);
+    border: 1px solid rgba(20,40,60,0.14); padding: 2px 6px; border-radius: 5px; pointer-events: none; white-space: nowrap;
+    box-shadow: 0 2px 6px rgba(20,40,60,0.1); }
+  @media (max-width: 720px) {
+    #hud { top: auto; bottom: 0; left: 0; right: 0; width: auto; max-height: 46%; border-radius: 14px 14px 0 0; }
+    #ionPanel { top: 10px; right: 10px; bottom: auto; width: 200px; padding: 6px; }
+    #ion { width: 188px; height: 141px; }
+    #legend, #hint { display: none; }
+    .tag { font-size: 9.5px; }
+  }
+</style>
+</head>
+<body>
+<canvas id="gl"></canvas>
+
+<div id="hud" class="panel">
+  <h1>Ion-Exchange Water Softener</h1>
+  <div class="sub">Animation sped up for clarity.</div>
+
+  <div class="sec">Operating mode</div>
+  <div class="modes">
+    <button data-mode="soft">Softening</button>
+    <button data-mode="back">Backflushing</button>
+    <button data-mode="regen">Regeneration</button>
+  </div>
+  <div class="desc" id="desc"></div>
+
+  <div class="sec">Pump &amp; flow</div>
+  <div class="row"><button id="bPump">Pump: ON</button></div>
+  <label class="sl">Adapter knob (flow control) <b id="vv">10.0 V</b>
+    <input type="range" id="volt" min="3" max="12" step="0.1" value="10">
+  </label>
+  <div class="kv"><span>Pump output</span><b id="flow">0%</b></div>
+
+  <div class="sec">Valves &amp; faucets <span style="text-transform:none;font-weight:500;letter-spacing:0">(tap to open/close)</span></div>
+  <div class="valves">
+    <button class="vbtn" data-v="sv"><i class="dot"></i><span>Service valve</span><b></b></button>
+    <button class="vbtn" data-v="bv"><i class="dot"></i><span>Backflushing valve</span><b></b></button>
+    <button class="vbtn" data-v="fa"><i class="dot"></i><span>Faucet adaptor</span><b></b></button>
+    <button class="vbtn" data-v="tf"><i class="dot"></i><span>Backflushing faucet</span><b></b></button>
+  </div>
+
+  <div class="sec">Resin</div>
+  <div class="kv"><span>Exchange capacity left</span><b id="cap">100%</b></div>
+  <div class="bar"><i id="capBar"></i></div>
+  <div class="kv"><span id="outLbl">Outlet hardness</span><b id="outH">—</b></div>
+  <div id="warn"></div>
+
+  <label class="chk"><input type="checkbox" id="lbl" checked> Show labels</label>
+  <div class="row" style="margin-top:10px">
+    <button id="bPause">Pause</button>
+    <button id="bEmpty">Empty containers</button>
+    <button id="bReset">Reset</button>
+  </div>
+</div>
+
+<div id="ionPanel" class="panel">
+  <h2>Ion exchange close-up (one resin bead)</h2>
+  <canvas id="ion"></canvas>
+  <div id="legend">
+    <span style="--c:#8b6cff">Na⁺</span><span style="--c:#ff8a3d">Ca²⁺</span><span style="--c:#2fb47c">Mg²⁺</span><span style="--c:#6b4a2a">debris</span>
+  </div>
+</div>
+<div id="hint">Drag to rotate · Scroll/pinch to zoom · Right-drag to pan</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+<script>
+(function () {
+  const V = (x, y, z) => new THREE.Vector3(x, y, z);
+  // Softener local frame: origin at centre of base, on the table top
+  const OX = 0, OY = 0.75, OZ = 0.1;
+  const L = (x, y, z) => new THREE.Vector3(OX + x, OY + y, OZ + z);
+
+  // ---------- Renderer ----------
+  const canvas = document.getElementById('gl');
+  const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+  renderer.setSize(window.innerWidth, window.innerHeight);
+  renderer.shadowMap.enabled = true;
+  renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+
+  const scene = new THREE.Scene();
+  scene.background = new THREE.Color(0xe9eef3);
+  scene.fog = new THREE.Fog(0xe9eef3, 9, 20);
+
+  const camera = new THREE.PerspectiveCamera(42, window.innerWidth / window.innerHeight, 0.02, 100);
+  camera.position.set(2.0, 1.95, 3.15);
+  const controls = new THREE.OrbitControls(camera, renderer.domElement);
+  controls.target.set(-0.35, 0.95, 0.25);
+  controls.enableDamping = true; controls.dampingFactor = 0.08;
+  controls.minDistance = 0.6; controls.maxDistance = 8;
+  controls.maxPolarAngle = Math.PI / 2 - 0.03;
+  controls.update();
+
+  scene.add(new THREE.HemisphereLight(0xf4f9ff, 0x60707f, 0.85));
+  const sun = new THREE.DirectionalLight(0xffffff, 0.85);
+  sun.position.set(2.5, 5, 3);
+  sun.castShadow = true;
+  sun.shadow.mapSize.set(2048, 2048);
+  Object.assign(sun.shadow.camera, { left: -3, right: 3, top: 3, bottom: -3, near: 0.5, far: 15 });
+  scene.add(sun);
+  const fillL = new THREE.DirectionalLight(0xd6e8ff, 0.35);
+  fillL.position.set(-3, 2, -2);
+  scene.add(fillL);
+
+  // ---------- Materials ----------
+  const M = {
+    acrylic: new THREE.MeshPhongMaterial({ color: 0x6fb4ee, specular: 0xffffff, shininess: 90, transparent: true, opacity: 0.13, side: THREE.DoubleSide, depthWrite: false }),
+    frame: new THREE.MeshStandardMaterial({ color: 0x2b2f35, roughness: 0.6, metalness: 0.2 }),
+    pvc: new THREE.MeshStandardMaterial({ color: 0x3f78c2, roughness: 0.45, metalness: 0.05, transparent: true, opacity: 0.55, depthWrite: false }),
+    pvcGrey: new THREE.MeshStandardMaterial({ color: 0x3a3f46, roughness: 0.5, transparent: true, opacity: 0.6, depthWrite: false }),
+    hose: new THREE.MeshPhongMaterial({ color: 0x22a37a, shininess: 60, transparent: true, opacity: 0.55, depthWrite: false }),
+    orange: new THREE.MeshPhongMaterial({ color: 0xff6f1f, shininess: 60, transparent: true, opacity: 0.55, depthWrite: false }),
+    white: new THREE.MeshStandardMaterial({ color: 0xeef2f0, roughness: 0.55 }),
+    valveBody: new THREE.MeshStandardMaterial({ color: 0xe4e7e6, roughness: 0.5 }),
+    handle: new THREE.MeshStandardMaterial({ color: 0xff8c1a, roughness: 0.5 }),
+    black: new THREE.MeshStandardMaterial({ color: 0x1f2226, roughness: 0.55 }),
+    filter: null,
+  };
+
+  // ---------- Room ----------
+  const floor = new THREE.Mesh(new THREE.PlaneGeometry(30, 30), new THREE.MeshStandardMaterial({ color: 0xd9dee2, roughness: 0.9 }));
+  floor.rotation.x = -Math.PI / 2; floor.receiveShadow = true; scene.add(floor);
+  (function tiles() {
+    const g = new THREE.GridHelper(12, 40, 0xc4ccd3, 0xc4ccd3);
+    g.position.y = 0.001; g.material.transparent = true; g.material.opacity = 0.7; scene.add(g);
+  })();
+  // Lab table
+  const tableMat = new THREE.MeshStandardMaterial({ color: 0x5fb3d9, roughness: 0.7 });
+  const top = new THREE.Mesh(new THREE.BoxGeometry(1.5, 0.04, 0.85), tableMat);
+  top.position.set(0, 0.73, 0); top.castShadow = true; top.receiveShadow = true; scene.add(top);
+  [[-0.7, -0.38], [0.7, -0.38], [-0.7, 0.38], [0.7, 0.38]].forEach(([x, z]) => {
+    const leg = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.71, 0.05), tableMat);
+    leg.position.set(x, 0.355, z); leg.castShadow = true; scene.add(leg);
+  });
+
+  // ---------- Acrylic box helper ----------
+  function acrylicBox(w, h, d, cx, cy, cz, order) {
+    const g = new THREE.Group();
+    const box = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), M.acrylic);
+    box.renderOrder = order || 10; g.add(box);
+    const t = 0.012;
+    const edges = [
+      [t, h, t, -w / 2, 0, -d / 2], [t, h, t, w / 2, 0, -d / 2], [t, h, t, -w / 2, 0, d / 2], [t, h, t, w / 2, 0, d / 2],
+      [w, t, t, 0, -h / 2, -d / 2], [w, t, t, 0, -h / 2, d / 2], [t, t, d, -w / 2, -h / 2, 0], [t, t, d, w / 2, -h / 2, 0],
+      [w, t, t, 0, h / 2, -d / 2], [w, t, t, 0, h / 2, d / 2], [t, t, d, -w / 2, h / 2, 0], [t, t, d, w / 2, h / 2, 0]
+    ];
+    edges.forEach(e => {
+      const m = new THREE.Mesh(new THREE.BoxGeometry(e[0], e[1], e[2]), M.frame);
+      m.position.set(e[3], e[4], e[5]); m.castShadow = true; g.add(m);
+    });
+    g.position.copy(L(cx, cy, cz));
+    scene.add(g);
+    return g;
+  }
+
+  // ---------- Softener geometry (local units, metres) ----------
+  const BASE_H = 0.19;
+  const COL_W = 0.30, COL_IN = 0.288;
+  const COL_BOT = 0.202, COL_TOP = 1.15;
+  const FILTER_Y = 0.40, RESIN_BOT = 0.41, RESIN_TOP = 0.86;
+  const TOPF_Y = 1.05, SERVICE_LVL = 0.85, MAX_LVL = 1.10, INLET_Y = 1.07;
+
+  acrylicBox(0.84, BASE_H, 0.56, 0, BASE_H / 2, 0, 9);
+  const plate = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.012, 0.62), M.acrylic);
+  plate.position.copy(L(0, BASE_H + 0.006, 0)); plate.renderOrder = 9; scene.add(plate);
+  acrylicBox(COL_W, COL_TOP - COL_BOT, COL_W, 0, (COL_TOP + COL_BOT) / 2, 0, 12);
+
+  // Lid
+  const lid = new THREE.Mesh(new THREE.BoxGeometry(0.36, 0.02, 0.36), new THREE.MeshPhongMaterial({ color: 0x9fd0f5, transparent: true, opacity: 0.55, shininess: 80 }));
+  lid.position.copy(L(0, COL_TOP + 0.01, 0)); lid.castShadow = true; scene.add(lid);
+  const knob = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.04, 0.03, 20), new THREE.MeshPhongMaterial({ color: 0x9fd0f5, transparent: true, opacity: 0.7 }));
+  knob.position.copy(L(0, COL_TOP + 0.035, 0)); scene.add(knob);
+
+  // Filter plate (perforated)
+  (function makeFilter() {
+    const c = document.createElement('canvas'); c.width = c.height = 128;
+    const x = c.getContext('2d'); x.fillStyle = '#e9edf0'; x.fillRect(0, 0, 128, 128);
+    x.fillStyle = '#7d8a96';
+    for (let i = 4; i < 128; i += 9) for (let j = 4; j < 128; j += 9) { x.beginPath(); x.arc(i, j, 2, 0, 7); x.fill(); }
+    const tex = new THREE.CanvasTexture(c);
+    const f = new THREE.Mesh(new THREE.BoxGeometry(COL_IN, 0.012, COL_IN), new THREE.MeshStandardMaterial({ map: tex, roughness: 0.6 }));
+    f.position.copy(L(0, FILTER_Y, 0)); f.receiveShadow = true; scene.add(f);
+    const mesh = new THREE.Mesh(new THREE.BoxGeometry(COL_IN, 0.004, COL_IN), new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.9, transparent: true, opacity: 0.8 }));
+    mesh.position.copy(L(0, FILTER_Y + 0.008, 0)); scene.add(mesh);
+  })();
+
+  // ---------- Pipe helpers ----------
+  function poly(pts, rad) {
+    rad = rad || 0.03;
+    const path = new THREE.CurvePath();
+    let prev = pts[0].clone();
+    for (let i = 1; i < pts.length - 1; i++) {
+      const a = pts[i - 1], b = pts[i], c = pts[i + 1];
+      const d1 = b.clone().sub(a), d2 = c.clone().sub(b);
+      const r = Math.min(rad, d1.length() / 2, d2.length() / 2);
+      const p1 = b.clone().sub(d1.normalize().multiplyScalar(r));
+      const p2 = b.clone().add(d2.normalize().multiplyScalar(r));
+      if (prev.distanceTo(p1) > 1e-5) path.add(new THREE.LineCurve3(prev, p1));
+      path.add(new THREE.QuadraticBezierCurve3(p1, b.clone(), p2));
+      prev = p2;
+    }
+    path.add(new THREE.LineCurve3(prev, pts[pts.length - 1].clone()));
+    return path;
+  }
+  const spline = pts => new THREE.CatmullRomCurve3(pts, false, 'centripetal');
+
+  const dotTex = (function () {
+    const c = document.createElement('canvas'); c.width = c.height = 32;
+    const x = c.getContext('2d');
+    const g = x.createRadialGradient(16, 16, 0, 16, 16, 16);
+    g.addColorStop(0, 'rgba(255,255,255,1)'); g.addColorStop(0.55, 'rgba(255,255,255,0.95)'); g.addColorStop(1, 'rgba(255,255,255,0)');
+    x.fillStyle = g; x.fillRect(0, 0, 32, 32);
+    return new THREE.CanvasTexture(c);
+  })();
+
+  const segs = {};
+  function segment(name, curve, radius, mat, nOverride) {
+    const s = { name, radius, mat, on: false, vis: 0, dir: 1, phase: Math.random(), color: new THREE.Color(0x9cd0f0) };
+    s.n = nOverride || Math.max(6, Math.round(curve.getLength() / 0.03));
+    const geo = new THREE.BufferGeometry();
+    s.pos = new Float32Array(s.n * 3);
+    geo.setAttribute('position', new THREE.BufferAttribute(s.pos, 3));
+    s.dotMat = new THREE.PointsMaterial({ size: radius * 1.5, map: dotTex, transparent: true, opacity: 0, depthWrite: false, color: 0x9cd0f0, sizeAttenuation: true });
+    s.pts = new THREE.Points(geo, s.dotMat); s.pts.frustumCulled = false; s.pts.renderOrder = 7;
+    scene.add(s.pts);
+    setCurve(s, curve);
+    segs[name] = s;
+    return s;
+  }
+  function setCurve(s, curve) {
+    s.curve = curve; s.len = curve.getLength();
+    if (s.mesh) { scene.remove(s.mesh); s.mesh.geometry.dispose(); }
+    s.mesh = new THREE.Mesh(new THREE.TubeGeometry(curve, Math.max(24, Math.round(s.len * 120)), s.radius, 14, false), s.mat);
+    s.mesh.renderOrder = 8; s.mesh.castShadow = true;
+    scene.add(s.mesh);
+  }
+  function updateSeg(s, dt, speed) {
+    s.vis += ((s.on ? 1 : 0) - s.vis) * Math.min(1, dt * 5);
+    s.dotMat.opacity = s.vis * 0.95;
+    s.dotMat.color.lerp(s.color, Math.min(1, dt * 4));
+    s.pts.visible = s.vis > 0.02;
+    if (!s.pts.visible) return;
+    if (s.on) s.phase += s.dir * speed * dt / s.len;
+    const tmp = new THREE.Vector3();
+    for (let i = 0; i < s.n; i++) {
+      let u = (i / s.n + s.phase) % 1; if (u < 0) u += 1;
+      s.curve.getPointAt(u, tmp);
+      s.pos[i * 3] = tmp.x; s.pos[i * 3 + 1] = tmp.y; s.pos[i * 3 + 2] = tmp.z;
+    }
+    s.pts.geometry.attributes.position.needsUpdate = true;
+  }
+
+  // ---------- Base piping ----------
+  const PY = 0.08, PR = 0.016;
+  segment('manifold', poly([L(0, PY, -0.37), L(0, PY, -0.21)]), PR, M.pvc);
+  segment('backBranch', poly([L(0, PY, -0.21), L(0, 0.44, -0.21)]), PR, M.pvc);
+  segment('bottomLine', poly([L(0, PY, -0.21), L(0, PY, 0)]), PR, M.pvc);
+  segment('riser', poly([L(0, PY, 0), L(0, 0.25, 0)]), PR, M.pvc);
+  segment('faucetLine', poly([L(0, PY, 0), L(0, PY, 0.36), L(0, 0.02, 0.36)], 0.02), PR, M.pvc);
+  // External tube / eductor (orange) from back valve up to the top of the column
+  segment('tube', spline([L(0, 0.44, -0.21), L(0, 0.7, -0.212), L(0, 1.05, -0.212), L(0, 1.2, -0.2),
+    L(0, 1.235, -0.15), L(0, 1.2, -0.11), L(0, INLET_Y, -0.11)]), 0.011, M.orange);
+  // Riser strainer cap inside column bottom
+  const strainer = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 0.025, 16), M.white);
+  strainer.position.copy(L(0, 0.255, 0)); scene.add(strainer);
+  // Tee / junction fittings
+  [L(0, PY, 0), L(0, PY, -0.21)].forEach(p => {
+    const t = new THREE.Mesh(new THREE.SphereGeometry(0.024, 14, 10), M.pvcGrey); t.position.copy(p); scene.add(t);
+  });
+  // Inlet elbow + hose barb outside the base (left)
+  const barb = new THREE.Mesh(new THREE.CylinderGeometry(0.014, 0.014, 0.06, 12), M.black);
+  barb.rotation.x = Math.PI / 2; barb.position.copy(L(0, PY, -0.37)); scene.add(barb);
+  // metal flange where the service-valve pipe passes through the base top
+  const flg = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 0.008, 24), new THREE.MeshStandardMaterial({ color: 0xc9ced2, metalness: 0.6, roughness: 0.35 }));
+  flg.position.copy(L(0, BASE_H + 0.016, -0.21)); scene.add(flg);
+
+  // ---------- Valves ----------
+  function ballValve(pos, axis) {
+    const g = new THREE.Group(); g.position.copy(pos);
+    const inner = new THREE.Group(); g.add(inner);
+    if (axis === 'y') inner.rotation.z = Math.PI / 2;
+    if (axis === 'z') inner.rotation.y = Math.PI / 2;
+    const body = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 0.08, 18), M.valveBody);
+    body.rotation.z = Math.PI / 2; body.castShadow = true; inner.add(body);
+    const hub = new THREE.Mesh(new THREE.SphereGeometry(0.034, 18, 12), M.valveBody); inner.add(hub);
+    const stem = new THREE.Mesh(new THREE.CylinderGeometry(0.008, 0.008, 0.04, 8), M.valveBody);
+    stem.position.y = 0.045; inner.add(stem);
+    const handle = new THREE.Group(); handle.position.y = 0.066; inner.add(handle);
+    const lever = new THREE.Mesh(new THREE.BoxGeometry(0.09, 0.014, 0.022), M.handle);
+    lever.position.x = 0.035; lever.castShadow = true; handle.add(lever);
+    scene.add(g);
+    return { g, handle, open: 0, target: 0 };
+  }
+  const backValve = ballValve(L(0, 0.31, -0.21), 'y');
+  const bottomValve = ballValve(L(0, PY, -0.105), 'z');
+
+  function faucet(pos, dirZ) {
+    const g = new THREE.Group(); g.position.copy(pos);
+    const stub = new THREE.Mesh(new THREE.CylinderGeometry(0.018, 0.022, 0.07, 16), M.white);
+    stub.rotation.x = Math.PI / 2; stub.position.z = 0.035; g.add(stub);
+    const body = new THREE.Mesh(new THREE.CylinderGeometry(0.022, 0.022, 0.06, 16), M.white);
+    body.position.set(0, 0.0, 0.075); g.add(body);
+    const spout = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.014, 0.05, 12), M.white);
+    spout.position.set(0, -0.045, 0.08); g.add(spout);
+    const handle = new THREE.Group(); handle.position.set(0, 0.04, 0.075); g.add(handle);
+    const lever = new THREE.Mesh(new THREE.BoxGeometry(0.075, 0.012, 0.02), M.white);
+    lever.position.x = 0.025; handle.add(lever);
+    g.traverse(o => { if (o.isMesh) o.castShadow = true; });
+    scene.add(g);
+    return { g, handle, open: 0, target: 0 };
+  }
+  const bottomFaucet = faucet(L(0, PY, 0.28));
+  bottomFaucet.g.children[2].position.set(0, -0.04, 0.08);
+  const topFaucet = faucet(L(0.08, TOPF_Y, COL_W / 2));
+  const BF_TIP = L(0, PY - 0.07, 0.36);
+  const TF_TIP = L(0.08, TOPF_Y - 0.07, COL_W / 2 + 0.08);
+  // hide the auto-generated faucet line end inside faucet: fine (pipe is translucent)
+
+  // ---------- Buckets / containers ----------
+  function bucket(opts) {
+    const { color, rTop, rBot, h, opacity, x, z } = opts;
+    const g = new THREE.Group(); g.position.set(x, 0, z);
+    const wallMat = new THREE.MeshPhongMaterial({ color, transparent: opacity < 1, opacity, side: THREE.DoubleSide, shininess: 50, depthWrite: opacity >= 1 });
+    const wall = new THREE.Mesh(new THREE.CylinderGeometry(rTop, rBot, h, 40, 1, true), wallMat);
+    wall.position.y = h / 2; wall.renderOrder = opacity < 1 ? 9 : 0; wall.castShadow = true; g.add(wall);
+    const bot = new THREE.Mesh(new THREE.CircleGeometry(rBot, 40), wallMat);
+    bot.rotation.x = -Math.PI / 2; bot.position.y = 0.004; g.add(bot);
+    const rim = new THREE.Mesh(new THREE.TorusGeometry(rTop, 0.008, 8, 48), new THREE.MeshPhongMaterial({ color: opts.rimColor || color }));
+    rim.rotation.x = Math.PI / 2; rim.position.y = h; g.add(rim);
+    const wMat = new THREE.MeshPhongMaterial({ color: 0x8fc8ee, transparent: true, opacity: 0.75, shininess: 90, depthWrite: false });
+    const water = new THREE.Mesh(new THREE.CylinderGeometry(1, 1, 1, 40), wMat);
+    water.renderOrder = 6; g.add(water);
+    scene.add(g);
+    const b = { g, h, rTop, rBot, water, wMat, level: opts.level || 0, color: new THREE.Color(0x8fc8ee) };
+    b.update = function () {
+      const lv = Math.max(0.0001, b.level) * (h - 0.02);
+      const r = (rBot + (rTop - rBot) * (lv / h) * 0.5) - 0.006;
+      b.water.scale.set(r, lv, r); b.water.position.y = 0.006 + lv / 2;
+      b.water.visible = b.level > 0.003;
+      b.wMat.color.copy(b.color);
+    };
+    b.surfaceY = () => g.position.y + 0.006 + Math.max(0.0001, b.level) * (h - 0.02);
+    b.update();
+    return b;
+  }
+  const BUCKET_HARD = V(-1.0, 0, 0.62), BUCKET_BRINE = V(-1.6, 0, 0.3);
+  const POS_A = V(0.1, 0, 0.5), POS_B = V(0.6, 0, 0.64);
+  const hardBucket = bucket({ color: 0x2f9e4f, rTop: 0.17, rBot: 0.13, h: 0.34, opacity: 1, x: BUCKET_HARD.x, z: BUCKET_HARD.z, level: 0.72 });
+  hardBucket.color.set(0x8fc0de); hardBucket.update();
+  const brineBucket = bucket({ color: 0xf1f4f6, rTop: 0.16, rBot: 0.125, h: 0.32, opacity: 0.55, x: BUCKET_BRINE.x, z: BUCKET_BRINE.z, level: 0.7, rimColor: 0xdfe5ea });
+  brineBucket.color.set(0xf4f8fb); brineBucket.wMat.opacity = 0.85; brineBucket.update();
+  const clearBox = bucket({ color: 0xe8f6ff, rTop: 0.12, rBot: 0.12, h: 0.3, opacity: 0.22, x: POS_A.x, z: POS_A.z, level: 0, rimColor: 0xb8d6ea });
+  clearBox.color.set(0x5cd6f5); clearBox.update();
+  const spentBucket = bucket({ color: 0x8c96a0, rTop: 0.14, rBot: 0.115, h: 0.3, opacity: 1, x: POS_B.x, z: POS_B.z, level: 0 });
+  spentBucket.color.set(0xe8cf9e); spentBucket.update();
+  const wasteBucket = bucket({ color: 0x6d7782, rTop: 0.16, rBot: 0.125, h: 0.33, opacity: 1, x: -0.42, z: 0.78, level: 0 });
+  wasteBucket.color.set(0xb7a77d); wasteBucket.update();
+
+  // Drain hose from the top (backflushing) faucet to the waste bucket
+  segment('drain', spline([TF_TIP.clone(), L(0.06, TOPF_Y - 0.2, 0.30), L(-0.1, 0.5, 0.40), V(-0.3, 0.75, 0.58),
+    V(-0.40, 0.48, 0.74), V(-0.42, 0.30, 0.77)]), 0.012, M.hose);
+  const DRAIN_END = V(-0.42, 0.30, 0.77);
+
+  // ---------- Submersible pump ----------
+  const pump = new THREE.Group();
+  (function () {
+    const body = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.035, 0.09, 20), M.black);
+    body.rotation.z = Math.PI / 2; body.position.y = 0.04; body.castShadow = true; pump.add(body);
+    const head = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 0.03, 16), M.black);
+    head.rotation.z = Math.PI / 2; head.position.set(0.055, 0.04, 0); pump.add(head);
+    const outlet = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.012, 0.05, 12), M.black);
+    outlet.position.set(0.055, 0.08, 0); pump.add(outlet);
+    const foot = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.008, 0.07), M.black);
+    foot.position.y = 0.004; pump.add(foot);
+    const label = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.001, 0.03), M.white);
+    label.position.set(-0.01, 0.0755, 0); pump.add(label);
+  })();
+  scene.add(pump);
+  const pumpState = { from: BUCKET_HARD.clone(), to: BUCKET_HARD.clone(), t: 1, at: 'hard' };
+  pump.position.set(BUCKET_HARD.x - 0.05, 0.006, BUCKET_HARD.z);
+  function pumpOutlet() { return V(pump.position.x + 0.055, pump.position.y + 0.105, pump.position.z); }
+  function hose1Curve() {
+    const o = pumpOutlet();
+    return spline([o, V(o.x, 0.42, o.z), V((o.x - 0.7) / 2, 0.58, 0.52), V(-0.68, 0.79, 0.36), L(-0.62, 0.03, 0.0), L(-0.45, 0.025, -0.4), L(-0.12, 0.03, -0.47), L(0, PY, -0.41)]);
+  }
+  segment('hose1', hose1Curve(), 0.012, M.hose, 110);
+
+  // ---------- Adjustable power adapter (pump speed / flow control) ----------
+  const ADP = V(-0.72, 0, 1.0);
+  const adapter = new THREE.Group(); adapter.position.copy(ADP); adapter.rotation.y = 0.3;
+  (function () {
+    const box = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.045, 0.09), M.black);
+    box.position.y = 0.0225; box.castShadow = true; adapter.add(box);
+    const dial = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 0.003, 28), new THREE.MeshStandardMaterial({ color: 0xd9dde1, roughness: 0.5 }));
+    dial.position.set(-0.02, 0.046, 0); adapter.add(dial);
+  })();
+  const knobG = new THREE.Group(); knobG.position.set(-0.02, 0.046, 0); adapter.add(knobG);
+  const adKnob = new THREE.Mesh(new THREE.CylinderGeometry(0.014, 0.016, 0.022, 18), M.black);
+  adKnob.position.y = 0.011; knobG.add(adKnob);
+  const adMark = new THREE.Mesh(new THREE.BoxGeometry(0.004, 0.004, 0.013), new THREE.MeshStandardMaterial({ color: 0xe02020 }));
+  adMark.position.set(0, 0.023, -0.006); knobG.add(adMark);
+  scene.add(adapter);
+  const cableMat = new THREE.MeshStandardMaterial({ color: 0x18191b, roughness: 0.6 });
+  let cable = null;
+  function rebuildCable() {
+    const o = V(pump.position.x - 0.045, pump.position.y + 0.04, pump.position.z);
+    const end = adapter.localToWorld(V(0.08, 0.02, 0));
+    const c = spline([o, V(o.x - 0.02, 0.4, o.z + 0.02), V((o.x + end.x) / 2, 0.15, (o.z + end.z) / 2 + 0.05), V(end.x - 0.05, 0.01, end.z - 0.03), end]);
+    if (cable) { scene.remove(cable); cable.geometry.dispose(); }
+    cable = new THREE.Mesh(new THREE.TubeGeometry(c, 80, 0.004, 6), cableMat); cable.castShadow = true; scene.add(cable);
+  }
+  adapter.updateMatrixWorld(true); rebuildCable();
+  // power cord from adapter toward the wall
+  (function () {
+    const st = adapter.localToWorld(V(-0.08, 0.02, 0));
+    const c = spline([st, V(st.x - 0.1, 0.005, st.z + 0.05), V(st.x - 0.5, 0.005, st.z - 0.3), V(st.x - 0.8, 0.005, st.z - 0.9)]);
+    const m = new THREE.Mesh(new THREE.TubeGeometry(c, 60, 0.004, 6), cableMat); scene.add(m);
+  })();
+
+  // ---------- Resin beads ----------
+  const LAYERS = 20;
+  const layerL = new Float32Array(LAYERS);
+  const NB = 2900;
+  const beadGeo = new THREE.SphereGeometry(0.0085, 8, 6);
+  const beadMat = new THREE.MeshStandardMaterial({ roughness: 0.35, metalness: 0.0 });
+  const beads = new THREE.InstancedMesh(beadGeo, beadMat, NB);
+  beads.castShadow = false;
+  const bx = new Float32Array(NB), by = new Float32Array(NB), bz = new Float32Array(NB), blayer = new Uint8Array(NB);
+  for (let i = 0; i < NB; i++) {
+    bx[i] = (Math.random() - 0.5) * (COL_IN - 0.02);
+    bz[i] = (Math.random() - 0.5) * (COL_IN - 0.02);
+    by[i] = RESIN_BOT + 0.004 + Math.random() * (RESIN_TOP - RESIN_BOT - 0.008);
+    const d = (RESIN_TOP - by[i]) / (RESIN_TOP - RESIN_BOT);
+    blayer[i] = Math.min(LAYERS - 1, Math.floor(d * LAYERS));
+  }
+  scene.add(beads);
+  const FRESH = new THREE.Color(0xffd21a), EXHAUSTED = new THREE.Color(0x9a4d12);
+  const tmpM = new THREE.Matrix4(), tmpC = new THREE.Color();
+  let expansion = 1;
+
+  function updateBeads(t, jig) {
+    for (let i = 0; i < NB; i++) {
+      const y = RESIN_BOT + (by[i] - RESIN_BOT) * expansion + (jig ? Math.sin(t * 4.2 + i * 1.37) * 0.006 * jig : 0);
+      const x = bx[i] + (jig ? Math.sin(t * 3.1 + i * 2.1) * 0.004 * jig : 0);
+      const z = bz[i] + (jig ? Math.cos(t * 2.7 + i * 0.7) * 0.004 * jig : 0);
+      tmpM.makeTranslation(OX + x, OY + y, OZ + z);
+      beads.setMatrixAt(i, tmpM);
+      tmpC.copy(FRESH).lerp(EXHAUSTED, layerL[blayer[i]]);
+      beads.setColorAt(i, tmpC);
+    }
+    beads.instanceMatrix.needsUpdate = true;
+    if (beads.instanceColor) beads.instanceColor.needsUpdate = true;
+  }
+
+  // ---------- Water in the column ----------
+  const upperMat = new THREE.MeshPhongMaterial({ color: 0x3f9be0, transparent: true, opacity: 0.42, depthWrite: false, shininess: 60, side: THREE.DoubleSide });
+  const lowerMat = new THREE.MeshPhongMaterial({ color: 0x2fc8f0, transparent: true, opacity: 0.42, depthWrite: false, shininess: 60, side: THREE.DoubleSide });
+  const upperWater = new THREE.Mesh(new THREE.BoxGeometry(COL_IN, 1, COL_IN), upperMat); upperWater.renderOrder = 2; scene.add(upperWater);
+  const oldMat = upperMat.clone();
+  const oldWater = new THREE.Mesh(new THREE.BoxGeometry(COL_IN, 1, COL_IN), oldMat); oldWater.renderOrder = 2; oldWater.visible = false; scene.add(oldWater);
+  const lowerWater = new THREE.Mesh(new THREE.BoxGeometry(COL_IN, 1, COL_IN), lowerMat); lowerWater.renderOrder = 2; scene.add(lowerWater);
+  const surfGeo = new THREE.PlaneGeometry(COL_IN - 0.002, COL_IN - 0.002, 28, 28); surfGeo.rotateX(-Math.PI / 2);
+  const surfBase = surfGeo.attributes.position.array.slice();
+  const surfMat = new THREE.MeshPhongMaterial({ color: 0xb6dcf2, transparent: true, opacity: 0.55, shininess: 120, specular: 0xffffff, depthWrite: false, side: THREE.DoubleSide });
+  const surf = new THREE.Mesh(surfGeo, surfMat); surf.renderOrder = 3; scene.add(surf);
+  const lowSurf = new THREE.Mesh(new THREE.PlaneGeometry(COL_IN - 0.002, COL_IN - 0.002).rotateX(-Math.PI / 2), surfMat.clone());
+  lowSurf.renderOrder = 3; scene.add(lowSurf);
+
+  // Tracer particles inside the column (show flow direction through the bed)
+  const NT = 170;
+  const tr = { pos: new Float32Array(NT * 3), y: new Float32Array(NT), x: new Float32Array(NT), z: new Float32Array(NT), sp: new Float32Array(NT) };
+  for (let i = 0; i < NT; i++) { tr.x[i] = (Math.random() - 0.5) * (COL_IN - 0.03); tr.z[i] = (Math.random() - 0.5) * (COL_IN - 0.03); tr.y[i] = COL_BOT + Math.random() * 0.8; tr.sp[i] = 0.7 + Math.random() * 0.6; }
+  const trGeo = new THREE.BufferGeometry(); trGeo.setAttribute('position', new THREE.BufferAttribute(tr.pos, 3));
+  trGeo.setAttribute('color', new THREE.BufferAttribute(new Float32Array(NT * 3), 3));
+  const trMat = new THREE.PointsMaterial({ size: 0.014, map: dotTex, vertexColors: true, transparent: true, opacity: 0.95, depthWrite: false });
+  const tracers = new THREE.Points(trGeo, trMat); tracers.frustumCulled = false; tracers.renderOrder = 5; scene.add(tracers);
+
+  // Debris particles washed up during backflush
+  const ND = 60;
+  const deb = { pos: new Float32Array(ND * 3), y: new Float32Array(ND), x: new Float32Array(ND), z: new Float32Array(ND) };
+  for (let i = 0; i < ND; i++) { deb.x[i] = (Math.random() - 0.5) * 0.26; deb.z[i] = (Math.random() - 0.5) * 0.26; deb.y[i] = RESIN_TOP + Math.random() * 0.2; }
+  const debGeo = new THREE.BufferGeometry(); debGeo.setAttribute('position', new THREE.BufferAttribute(deb.pos, 3));
+  const debMat = new THREE.PointsMaterial({ size: 0.01, color: 0x6b4a2a, transparent: true, opacity: 0, depthWrite: false });
+  const debris = new THREE.Points(debGeo, debMat); debris.frustumCulled = false; debris.renderOrder = 5; scene.add(debris);
+
+  // ---------- Water falling through the open chamber below the filter ----------
+  const dripTex = (function () {
+    const c = document.createElement('canvas'); c.width = 16; c.height = 128;
+    const x = c.getContext('2d'); x.fillStyle = 'rgba(120,200,240,0.9)'; x.fillRect(0, 0, 16, 128);
+    for (let i = 0; i < 18; i++) { x.fillStyle = `rgba(255,255,255,${0.3 + Math.random() * 0.5})`; x.fillRect(Math.random() * 16, Math.random() * 128, 2, 6 + Math.random() * 16); }
+    for (let i = 0; i < 8; i++) { x.clearRect(0, Math.random() * 128, 16, 4 + Math.random() * 8); }
+    const t = new THREE.CanvasTexture(c); t.wrapS = t.wrapT = THREE.RepeatWrapping; return t;
+  })();
+  const dripMat = new THREE.MeshPhongMaterial({ map: dripTex, color: 0xffffff, transparent: true, opacity: 0, depthWrite: false, shininess: 90, side: THREE.DoubleSide });
+  const dripStreams = [];
+  for (let i = -1; i <= 1; i++) for (let k = -1; k <= 1; k++) {
+    const m = new THREE.Mesh(new THREE.CylinderGeometry(0.0045, 0.0035, 1, 8, 1, true), dripMat);
+    m.position.set(OX + i * 0.085 + (Math.random() - 0.5) * 0.02, 0, OZ + k * 0.085 + (Math.random() - 0.5) * 0.02);
+    m.renderOrder = 4; m.visible = false; scene.add(m); dripStreams.push(m);
+  }
+  const NDR = 160;
+  const dr = { pos: new Float32Array(NDR * 3), y: new Float32Array(NDR), x: new Float32Array(NDR), z: new Float32Array(NDR), v: new Float32Array(NDR) };
+  for (let i = 0; i < NDR; i++) { dr.x[i] = (Math.random() - 0.5) * (COL_IN - 0.03); dr.z[i] = (Math.random() - 0.5) * (COL_IN - 0.03); dr.y[i] = COL_BOT + Math.random() * (FILTER_Y - COL_BOT); dr.v[i] = 0.7 + Math.random() * 0.6; }
+  const drGeo = new THREE.BufferGeometry(); drGeo.setAttribute('position', new THREE.BufferAttribute(dr.pos, 3));
+  const drMat = new THREE.PointsMaterial({ size: 0.012, map: dotTex, color: 0x7fd8ff, transparent: true, opacity: 0, depthWrite: false });
+  const drops = new THREE.Points(drGeo, drMat); drops.frustumCulled = false; drops.renderOrder = 5; scene.add(drops);
+  let dripVis = 0;
+
+  // ---------- Falling streams ----------
+  function streamTex() {
+    const c = document.createElement('canvas'); c.width = 32; c.height = 128;
+    const x = c.getContext('2d'); x.fillStyle = '#9fd3f2'; x.fillRect(0, 0, 32, 128);
+    for (let i = 0; i < 40; i++) { x.fillStyle = `rgba(255,255,255,${0.2 + Math.random() * 0.5})`; const px = Math.random() * 32, py = Math.random() * 128, h = 6 + Math.random() * 22; x.fillRect(px, py, 1 + Math.random() * 2, h); if (py + h > 128) x.fillRect(px, py - 128, 2, h); }
+    const t = new THREE.CanvasTexture(c); t.wrapS = t.wrapT = THREE.RepeatWrapping; return t;
+  }
+  function stream(r) {
+    const tex = streamTex();
+    const mat = new THREE.MeshPhongMaterial({ map: tex, color: 0xffffff, transparent: true, opacity: 0.85, depthWrite: false, shininess: 90 });
+    const m = new THREE.Mesh(new THREE.CylinderGeometry(r, r * 0.8, 1, 14, 1, true), mat);
+    m.renderOrder = 4; m.visible = false; scene.add(m);
+    return { m, tex, mat, top: 0, bot: 0, idle: true, x: 0, z: 0 };
+  }
+  const sInlet = stream(0.008), sBF = stream(0.009), sDrain = stream(0.009);
+  function runStream(s, src, targetY, flowing, dt, speed, thick, color) {
+    if (flowing) { s.idle = false; s.top = src.y; s.bot = s.bot > targetY ? Math.max(targetY, s.bot - speed * dt) : targetY; }
+    else if (s.idle) { s.top = s.bot = src.y; }
+    else { s.bot = targetY; s.top -= speed * dt; if (s.top <= targetY) { s.top = s.bot = src.y; s.idle = true; } }
+    if (s.bot > s.top) s.bot = s.top;
+    const len = s.top - s.bot;
+    s.m.visible = len > 0.003;
+    if (s.m.visible) {
+      s.m.position.set(src.x, (s.top + s.bot) / 2, src.z);
+      s.m.scale.set(thick, len, thick);
+      s.tex.repeat.set(1, Math.max(0.3, len * 3));
+      s.tex.offset.y += dt * 2.5;
+      s.mat.color.lerp(color, Math.min(1, dt * 4));
+    }
+    return flowing && s.bot <= targetY + 1e-4;
+  }
+
+  // ---------- Labels ----------
+  const tags = [];
+  function tag(text, getPos, cls) {
+    const el = document.createElement('div'); el.className = 'tag' + (cls ? ' ' + cls : ''); el.textContent = text;
+    document.body.appendChild(el);
+    const t = { el, getPos, show: true }; tags.push(t); return t;
+  }
+  const fixed = p => () => p;
+  tag('Lid', fixed(L(0.14, COL_TOP + 0.07, 0.1)));
+  tag('Backflushing faucet', fixed(L(0.12, TOPF_Y + 0.07, COL_W / 2 + 0.1)));
+  tag('Resin', fixed(L(0.2, (RESIN_TOP + RESIN_BOT) / 2 + 0.04, 0.15)));
+  tag('Filter', fixed(L(0.2, FILTER_Y + 0.01, 0.15)));
+  tag('Resin tank', fixed(L(-0.2, 1.0, 0.15)));
+  tag('Base', fixed(L(0.45, 0.14, 0.28)));
+  tag('Faucet adaptor', fixed(L(0.1, -0.03, 0.42)));
+  tag('Tube / eductor', fixed(L(0, 1.28, -0.24)));
+  tag('Service valve', fixed(L(0, 0.31, -0.36)));
+  tag('Backflushing valve', fixed(L(0.16, 0.12, -0.1)));
+  tag('Adjustable adapter (flow control)', fixed(V(ADP.x, 0.12, ADP.z)));
+  tag('Submersible pump', () => V(pump.position.x + 0.2, pump.position.y + 0.12, pump.position.z + 0.12));
+  tag('Hard water bucket', fixed(V(BUCKET_HARD.x - 0.05, 0.47, BUCKET_HARD.z + 0.1)));
+  tag('Brine bucket (NaCl)', fixed(V(BUCKET_BRINE.x, 0.4, BUCKET_BRINE.z + 0.1)));
+  tag('Softened water', () => V(clearBox.g.position.x, 0.37, clearBox.g.position.z + 0.1));
+  tag('Spent brine', () => V(spentBucket.g.position.x, 0.37, spentBucket.g.position.z + 0.1));
+  tag('Backflush waste', fixed(V(-0.42, 0.42, 0.88)));
+  let showLabels = true;
+  const tv = new THREE.Vector3();
+  function updateTags() {
+    const w = window.innerWidth, h = window.innerHeight;
+    for (const t of tags) {
+      const want = showLabels && t.show;
+      if (!want) { t.el.style.display = 'none'; continue; }
+      tv.copy(t.getPos()).project(camera);
+      const vis = tv.z < 1 && Math.abs(tv.x) < 1.05 && Math.abs(tv.y) < 1.05;
+      t.el.style.display = vis ? 'block' : 'none';
+      if (vis) t.el.style.transform = `translate(${(tv.x * 0.5 + 0.5) * w}px, ${(-tv.y * 0.5 + 0.5) * h}px) translate(-50%, -50%)`;
+    }
+  }
+
+  // ---------- Modes ----------
+  const MODES = {
+    soft:  { sv: 1, bv: 0, fa: 1, tf: 0, lock: ['bv', 'tf'], src: 'hard', desc: 'Use the <b>service valve</b> and <b>faucet adaptor</b> (the other two stay closed). Water trickles <b>down</b> through the resin from the top. Faucet adaptor closed: it stays above the filter. Open: it passes the filter and leaves as softened water. Cut the supply with the faucet adaptor open to drain the column.' },
+    back:  { sv: 0, bv: 1, fa: 0, tf: 0, lock: ['sv'], src: 'hard', desc: 'Use the <b>backflushing valve</b> and the two faucets (service valve stays closed). Water enters from <b>below</b> and rises through the resin, lifting the bed and the dirt. Close the valve or stop the pump, open the backflushing faucet to drain the dirty water, then the faucet adaptor to drain the rest.' },
+    regen: { sv: 1, bv: 0, fa: 1, tf: 0, lock: ['bv', 'tf'], src: 'brine', desc: 'Same as softening, with <b>brine</b>: the pump is in the brine bucket. Brine trickles down through the resin and pushes Ca²⁺/Mg²⁺ off it. Faucet adaptor open: spent brine leaves to the spent-brine bucket.' }
+  };
+  let mode = 'soft';
+  let pumpOn = true, paused = false, volt = 10;
+  const vs = { sv: 1, bv: 0, fa: 1, tf: 0 };
+  let op = 'soft';
+  // Water above the filter is one continuous zone [wetBot, wetTop] (local y). Dry when the two are equal.
+  let wetBot = RESIN_TOP, wetTop = RESIN_TOP, lowerFill = 0, fFront = -1, lastBrine = false, dirt = 0;
+  const PUDDLE = 0.12;
+  let cOutSoft = 0, spentStrength = 0, swapT = 0, swapTarget = 0;
+
+  const $ = id => document.getElementById(id);
+  const modeBtns = Array.from(document.querySelectorAll('[data-mode]'));
+  const vbtns = Array.from(document.querySelectorAll('[data-v]'));
+  function refreshValves() {
+    backValve.target = vs.sv; bottomValve.target = vs.bv; bottomFaucet.target = vs.fa; topFaucet.target = vs.tf;
+    const lock = (MODES[mode] || {}).lock || [];
+    vbtns.forEach(b => { const o = !!vs[b.dataset.v]; b.classList.toggle('open', o); b.disabled = lock.includes(b.dataset.v); b.querySelector('b').textContent = (o ? 'OPEN' : 'CLOSED') + (b.disabled ? ' · locked' : ''); });
+  }
+  function setMode(m) {
+    mode = m;
+    const cfg = MODES[m];
+    if (cfg.src !== pumpState.at) movePump(cfg.src);
+    ['sv', 'bv', 'fa', 'tf'].forEach(k => vs[k] = cfg[k]);
+    modeBtns.forEach(b => b.classList.toggle('on', b.dataset.mode === m));
+    $('desc').innerHTML = cfg.desc;
+    refreshValves();
+  }
+  modeBtns.forEach(b => b.onclick = () => setMode(b.dataset.mode));
+  vbtns.forEach(b => b.onclick = () => {
+    if (b.disabled) return;
+    vs[b.dataset.v] = vs[b.dataset.v] ? 0 : 1;
+    refreshValves();
+  });
+  function movePump(where) {
+    pumpState.from = V(pump.position.x, pump.position.y, pump.position.z);
+    const dst = where === 'brine' ? BUCKET_BRINE : BUCKET_HARD;
+    pumpState.to = V(dst.x - 0.05, 0.006, dst.z);
+    pumpState.t = 0; pumpState.at = where;
+  }
+  $('bPump').onclick = () => { pumpOn = !pumpOn; $('bPump').textContent = 'Pump: ' + (pumpOn ? 'ON' : 'OFF'); $('bPump').classList.toggle('on', pumpOn); };
+  $('bPump').classList.add('on');
+  $('volt').oninput = e => { volt = +e.target.value; $('vv').textContent = volt.toFixed(1) + ' V'; };
+  $('lbl').onchange = e => { showLabels = e.target.checked; };
+  $('bPause').onclick = () => { paused = !paused; $('bPause').textContent = paused ? 'Play' : 'Pause'; };
+  $('bEmpty').onclick = () => { clearBox.level = 0; spentBucket.level = 0; wasteBucket.level = 0; cOutSoft = 0; spentStrength = 0; };
+  $('bReset').onclick = () => {
+    layerL.fill(0); wetBot = wetTop = RESIN_TOP; lowerFill = 0; expansion = 1; fFront = -1; dirt = 0;
+    clearBox.level = spentBucket.level = wasteBucket.level = 0; cOutSoft = 0; spentStrength = 0;
+    pumpOn = true; $('bPump').textContent = 'Pump: ON'; $('bPump').classList.add('on');
+    setMode('soft');
+  };
+
+  // ---------- Colors ----------
+  const C = {
+    hard: new THREE.Color(0xb9d7ec), soft: new THREE.Color(0x2fd8ff), brine: new THREE.Color(0xffffff),
+    spent: new THREE.Color(0xf0c27a), waste: new THREE.Color(0xc2a874)
+  };
+
+  // ---------- Simulation ----------
+  let outFlow = false, overflow = false, topFeed = false, flowLmin = 0, cOut = 0, exchangeOn = false;
+  let drips = false, frontMoving = false, flowingUp = false;
+  function flowFromVolt(v) { return v < 4 ? 0 : 8.5 * Math.pow((v - 4) / 8, 0.85); }
+  const BED_FLOOR = FILTER_Y + 0.006;
+
+  function sim(dt, t) {
+    if (pumpState.t < 1) {
+      pumpState.t = Math.min(1, pumpState.t + dt / 1.8);
+      const k = pumpState.t, e = k * k * (3 - 2 * k);
+      pump.position.lerpVectors(pumpState.from, pumpState.to, e);
+      pump.position.y = pumpState.from.y + Math.sin(Math.PI * k) * 0.55;
+      setCurve(segs.hose1, hose1Curve()); rebuildCable();
+    }
+    const pumping = pumpOn && pumpState.t >= 1;
+    flowLmin = pumping ? flowFromVolt(volt) : 0;
+    const f = flowLmin / 8.5;
+
+    [backValve, bottomValve, bottomFaucet, topFaucet].forEach(v => { v.open += (v.target - v.open) * Math.min(1, dt * 3); v.handle.rotation.y = (1 - v.open) * Math.PI / 2; });
+
+    const brineSrc = pumpState.at === 'brine';
+    const fluidIn = brineSrc ? C.brine : C.hard;
+    const bedTop = RESIN_BOT + (RESIN_TOP - RESIN_BOT) * expansion;
+    let dry = wetTop - wetBot < 0.002;
+    const svOpen = backValve.open > 0.5, bvOpen = bottomValve.open > 0.5;
+    const faucetOpen = bottomFaucet.open > 0.5, tfOpen = topFaucet.open > 0.5;
+    topFeed = false; outFlow = false; overflow = false; exchangeOn = false; drips = false; frontMoving = false; flowingUp = false;
+    let bottomFeed = false, split = false, raining = false;
+    const TRICKLE = 0.03 * (0.4 + f);
+    const capTop = tfOpen ? TOPF_Y : MAX_LVL;
+
+    // anything above an open backflushing faucet spills out of it
+    if (tfOpen && wetTop > TOPF_Y) { wetTop = Math.max(TOPF_Y, wetTop - 0.1 * dt); overflow = true; }
+
+    // ---- feed from below (backflushing valve) ----
+    if (bvOpen && f > 0) {
+      bottomFeed = true;
+      let fu = f;
+      if (faucetOpen) { split = true; fu = f * 0.5; outFlow = true; }   // flow divides: part out the faucet adaptor, part upward
+      if (lowerFill < 1) lowerFill = Math.min(1, lowerFill + 0.7 * fu * dt);
+      else {
+        if (dry || wetBot > BED_FLOOR) { wetBot = BED_FLOOR; if (wetTop < wetBot) wetTop = wetBot; dry = false; }
+        if (wetTop < capTop) { wetTop = Math.min(capTop, wetTop + 0.14 * fu * dt); flowingUp = true; }
+        else if (tfOpen) { overflow = true; flowingUp = true; }
+      }
+    }
+    // ---- feed from the top (service valve) ----
+    const supplyTop = svOpen && f > 0 && !bottomFeed;
+    if (supplyTop) {
+      if (dry) { wetTop = bedTop; wetBot = bedTop - 0.002; dry = false; }
+      topFeed = wetTop < capTop - 0.002 || faucetOpen || tfOpen;
+      if (wetBot > BED_FLOOR + 1e-4) {
+        wetBot = Math.max(BED_FLOOR, wetBot - TRICKLE * dt); frontMoving = true;        // trickles from top of bed to bottom
+        if (wetTop < bedTop) wetTop = bedTop;
+      } else if (faucetOpen) {
+        drips = true;
+        if (wetTop > bedTop) wetTop = Math.max(bedTop, wetTop - 0.045 * dt);
+      } else if (topFeed) {
+        wetTop = Math.min(capTop, wetTop + 0.1 * f * dt);                               // no outlet: level rises until full
+        if (tfOpen && wetTop >= TOPF_Y - 0.002) overflow = true;
+      }
+    } else if (!bottomFeed && !dry) {
+      // supply cut: the water keeps moving down by gravity
+      const v = 0.018;
+      if (wetBot > BED_FLOOR + 1e-4) {
+        const d = Math.min(v * dt, wetBot - BED_FLOOR);                                  // settles onto the filter
+        wetBot -= d; wetTop -= d; frontMoving = true;
+      } else if (faucetOpen) {
+        wetTop = Math.max(BED_FLOOR, wetTop - (wetTop > bedTop ? 0.045 : 0.025) * dt);  // drains completely
+        if (wetTop - wetBot < 0.002) wetTop = wetBot = BED_FLOOR;
+      }
+    }
+    dry = wetTop - wetBot < 0.002;
+    const reached = !dry && wetBot <= BED_FLOOR + 1e-4;
+    // chamber below the filter
+    if (faucetOpen && !bottomFeed) {
+      if (reached && (drips || !supplyTop)) {
+        if (lowerFill < 0.999) { raining = true; lowerFill += (PUDDLE - lowerFill) * Math.min(1, dt * 1.5); }
+        outFlow = true;
+      } else if (dry && lowerFill > 0) {
+        lowerFill = Math.max(0, lowerFill - 0.15 * dt);
+        outFlow = lowerFill > 0.005;
+      }
+    }
+    if (supplyTop) topFeed = true;
+    if (supplyTop && !faucetOpen && reached && wetTop >= capTop - 0.002 && !tfOpen) topFeed = false;   // column full, pump can't push more
+    exchangeOn = drips;
+    op = mode === 'back' ? 'back' : (brineSrc ? 'regen' : 'soft');
+    sim.split = split; sim.bottomFeed = bottomFeed; sim.raining = raining; sim.dry = dry;
+
+    // fluid front when the feed changes (e.g. brine pushing leftover water down)
+    if (brineSrc !== lastBrine) { lastBrine = brineSrc; if (!dry) { fFront = wetTop; oldMat.color.copy(upperMat.color); upperMat.color.copy(brineSrc ? new THREE.Color(0xdfeef7) : new THREE.Color(0x3f9be0)); } }
+    if (fFront > 0) {
+      if (topFeed && (frontMoving || drips)) fFront -= TRICKLE * dt;
+      if (fFront > wetTop) fFront = wetTop;
+      if (bottomFeed || dry || fFront <= wetBot + 0.002) fFront = -1;
+    }
+
+    // ion exchange in the bed (20 layers, top to bottom)
+    if (exchangeOn && !brineSrc) {
+      let c = 1;
+      for (let j = 0; j < LAYERS; j++) { const up = c * (1 - layerL[j]) * 0.5; layerL[j] = Math.min(1, layerL[j] + up * 0.8 * f * dt); c -= up; }
+      cOut = Math.max(0, c);
+    } else if (exchangeOn && brineSrc) {
+      let b = 1, released = 0;
+      for (let j = 0; j < LAYERS; j++) { const rel = 0.5 * b * layerL[j]; layerL[j] = Math.max(0, layerL[j] - rel * 0.9 * f * dt); b -= rel * 0.5; released += rel; }
+      cOut = Math.min(1, released / 4);
+    } else if (!outFlow) cOut = 0;
+
+    const expTarget = flowingUp ? 1 + 0.25 * Math.min(1, f * 1.4) : 1;
+    expansion += (expTarget - expansion) * Math.min(1, dt * 0.8);
+
+    swapTarget = brineSrc ? 1 : 0;
+    swapT += (swapTarget - swapT) * Math.min(1, dt * 1.6);
+    clearBox.g.position.lerpVectors(POS_A, POS_B, swapT);
+    spentBucket.g.position.lerpVectors(POS_B, POS_A, swapT);
+    const recv = swapT < 0.5 ? clearBox : spentBucket;
+
+    const fluidColumn = fluidIn;
+    runStream(sInlet, L(0, INLET_Y - 0.01, -0.11), OY + Math.max(wetTop, bedTop), topFeed, dt, 3, 0.6 + 0.6 * f, fluidColumn);
+    const productColor = split ? fluidIn.clone() : brineSrc ? C.spent.clone().lerp(C.brine, 1 - cOut) : C.soft.clone().lerp(C.hard, cOut);
+    const outStrength = split ? 0.5 * f : (drips ? f : 0.6);
+    const bfHit = runStream(sBF, BF_TIP, recv.surfaceY(), outFlow && Math.abs(swapT - swapTarget) < 0.1, dt, 3, 0.5 + 0.6 * outStrength, productColor);
+    const drHit = runStream(sDrain, DRAIN_END, wasteBucket.surfaceY(), overflow, dt, 3, 0.6 + 0.6 * f, C.waste);
+
+    if (bfHit) {
+      const dv = 0.03 * outStrength * dt;
+      if (recv === clearBox) { cOutSoft = (cOutSoft * clearBox.level + cOut * dv) / Math.max(1e-6, clearBox.level + dv); clearBox.level = Math.min(0.95, clearBox.level + dv); }
+      else { spentStrength = (spentStrength * spentBucket.level + cOut * dv) / Math.max(1e-6, spentBucket.level + dv); spentBucket.level = Math.min(0.95, spentBucket.level + dv); }
+    }
+    if (drHit) wasteBucket.level = Math.min(0.95, wasteBucket.level + 0.03 * Math.max(f, 0.3) * dt);
+    clearBox.color.copy(C.soft).lerp(C.hard, cOutSoft); clearBox.update();
+    spentBucket.color.copy(C.brine).lerp(C.spent, Math.min(1, 0.4 + spentStrength)); spentBucket.update();
+    wasteBucket.update();
+
+    // pipe segment flows
+    const sp = 0.15 + 0.5 * f;
+    const feedOn = pumping && (topFeed || bottomFeed);
+    ['hose1', 'manifold'].forEach(n => { segs[n].on = feedOn; segs[n].dir = 1; segs[n].color.copy(fluidIn); });
+    segs.backBranch.on = segs.tube.on = pumping && topFeed; segs.backBranch.color.copy(fluidIn); segs.tube.color.copy(fluidIn);
+    segs.bottomLine.on = pumping && bottomFeed; segs.bottomLine.color.copy(fluidIn);
+    if (bottomFeed) { segs.riser.on = pumping && f > 0; segs.riser.dir = 1; segs.riser.color.copy(fluidIn); }
+    else { segs.riser.on = outFlow; segs.riser.dir = -1; segs.riser.color.copy(productColor); }
+    segs.faucetLine.on = outFlow; segs.faucetLine.color.copy(productColor);
+    segs.drain.on = overflow; segs.drain.color.copy(C.waste);
+    for (const k in segs) updateSeg(segs[k], dt, sp);
+
+    knobG.rotation.y = -((volt - 3) / 9) * Math.PI * 1.5 + Math.PI * 0.75;
+    if (pumping) pump.position.x += Math.sin(t * 90) * 0.0004;
+
+    // column water colours
+    const upColor = brineSrc ? new THREE.Color(0xdfeef7) : op === 'back' ? new THREE.Color(0x7fae9c) : new THREE.Color(0x3f9be0);
+    upperMat.color.lerp(upColor, Math.min(1, dt * 2));
+    upperMat.opacity += ((brineSrc ? 0.55 : 0.42) - upperMat.opacity) * Math.min(1, dt * 2);
+    const lowColor = bottomFeed ? upColor : productColor.clone().multiplyScalar(0.85);
+    lowerMat.color.lerp(lowColor, Math.min(1, dt * 2));
+
+    // tracers: slow trickle through the bed, fast drops below the filter
+    const tcol = trGeo.attributes.color.array;
+    const moveDown = (topFeed && (frontMoving || drips)) || (!topFeed && !bottomFeed && (frontMoving || raining));
+    const lowTop = COL_BOT + (FILTER_Y - 0.006 - COL_BOT) * lowerFill;
+    for (let i = 0; i < NT; i++) {
+      let y = tr.y[i];
+      let visible = false;
+      if (moveDown) {
+        if (y >= FILTER_Y) {
+          const inBed = y < bedTop;
+          y -= (0.02 + 0.06 * f) * tr.sp[i] * (inBed ? 0.6 : 1.5) * dt;
+          if (frontMoving && y < wetBot) y = wetTop - Math.random() * 0.03;
+          if (!frontMoving && !raining && y < BED_FLOOR) y = wetTop - Math.random() * 0.03;
+        } else {
+          y -= (0.45 + 0.25 * tr.sp[i]) * dt;
+          if (y < lowTop) y = wetTop - Math.random() * 0.03;
+        }
+        visible = (y >= FILTER_Y && y >= wetBot && y <= wetTop) || (y < FILTER_Y - 0.008 && raining && y > lowTop);
+      } else if (flowingUp) {
+        y += (0.05 + 0.12 * f) * tr.sp[i] * (y > RESIN_BOT && y < bedTop ? 0.5 : 1) * dt;
+        if (y > wetTop - 0.005) y = COL_BOT + 0.01;
+        visible = (y > FILTER_Y && y < wetTop) || (y <= FILTER_Y && y < lowTop);
+      }
+      tr.y[i] = y;
+      tr.pos[i * 3] = OX + tr.x[i]; tr.pos[i * 3 + 1] = visible ? OY + y : -10; tr.pos[i * 3 + 2] = OZ + tr.z[i];
+      const col = flowingUp ? (y > RESIN_TOP ? C.waste : fluidIn) : (y < RESIN_BOT ? productColor : fluidIn);
+      tcol[i * 3] = col.r; tcol[i * 3 + 1] = col.g; tcol[i * 3 + 2] = col.b;
+    }
+    trGeo.attributes.position.needsUpdate = true; trGeo.attributes.color.needsUpdate = true;
+
+    // water raining down the open chamber from the underside of the filter
+    const rainingNow = raining;
+    dripVis += ((rainingNow ? 1 : 0) - dripVis) * Math.min(1, dt * 4);
+    dripMat.opacity = 0.75 * dripVis; drMat.opacity = 0.95 * dripVis;
+    dripMat.color.copy(productColor).lerp(new THREE.Color(0xffffff), 0.3); drMat.color.copy(productColor);
+    const rTop = FILTER_Y - 0.008, rBot = lowTop;
+    dripTex.offset.y += dt * (2 + 3 * f);
+    dripStreams.forEach(m => {
+      m.visible = dripVis > 0.03 && rTop - rBot > 0.005;
+      if (m.visible) { m.scale.set(0.6 + 0.8 * f, rTop - rBot, 0.6 + 0.8 * f); m.position.y = OY + (rTop + rBot) / 2; }
+    });
+    drops.visible = dripVis > 0.03;
+    for (let i = 0; i < NDR; i++) {
+      if (rainingNow) { dr.y[i] -= dr.v[i] * dt; if (dr.y[i] < rBot) dr.y[i] = rTop - Math.random() * 0.01; }
+      dr.pos[i * 3] = OX + dr.x[i]; dr.pos[i * 3 + 1] = (dr.y[i] < rTop && dr.y[i] > rBot) ? OY + dr.y[i] : -10; dr.pos[i * 3 + 2] = OZ + dr.z[i];
+    }
+    drGeo.attributes.position.needsUpdate = true;
+
+    if (flowingUp) dirt = Math.min(1, dirt + 0.3 * dt);
+    if (overflow) dirt = Math.max(0, dirt - 0.25 * dt);
+    if (dry) dirt = 0;
+    debMat.opacity += ((dirt > 0.02 ? 0.9 * Math.min(1, dirt * 2) : 0) - debMat.opacity) * Math.min(1, dt * 2);
+    for (let i = 0; i < ND; i++) {
+      if (flowingUp) { deb.y[i] += (0.04 + 0.06 * f) * dt; if (deb.y[i] > wetTop - 0.005) deb.y[i] = bedTop - 0.02 * Math.random(); }
+      else { const tgt = Math.max(bedTop, wetTop - 0.01 - (i % 10) * 0.006); deb.y[i] += (tgt - deb.y[i]) * Math.min(1, dt * 0.8); }
+      if (deb.y[i] > wetTop - 0.003) deb.y[i] = wetTop - 0.003;
+      deb.pos[i * 3] = OX + deb.x[i] + Math.sin(t * 2 + i) * 0.01; deb.pos[i * 3 + 1] = OY + deb.y[i]; deb.pos[i * 3 + 2] = OZ + deb.z[i];
+    }
+    debGeo.attributes.position.needsUpdate = true;
+  }
+
+  function renderColumn(t) {
+    const lowH = (FILTER_Y - 0.006 - COL_BOT) * lowerFill;
+    lowerWater.visible = lowH > 0.002;
+    lowerWater.scale.y = Math.max(lowH, 0.001); lowerWater.position.copy(L(0, COL_BOT + lowH / 2, 0));
+    lowSurf.position.copy(L(0, COL_BOT + lowH, 0));
+    lowSurf.visible = lowH > 0.002 && lowerFill < 0.999;
+    const bedTop = RESIN_BOT + (RESIN_TOP - RESIN_BOT) * expansion;
+    const splitY = fFront > 0 ? Math.max(wetBot, Math.min(wetTop, fFront)) : wetBot;
+    const upH = wetTop - splitY;
+    upperWater.visible = upH > 0.003;
+    upperWater.scale.y = Math.max(upH, 0.001); upperWater.position.copy(L(0, splitY + upH / 2, 0));
+    const oH = splitY - wetBot;
+    oldWater.visible = oH > 0.003;
+    oldWater.scale.y = Math.max(oH, 0.001); oldWater.position.copy(L(0, wetBot + oH / 2, 0));
+    surf.visible = upH > 0.003 && wetTop > bedTop + 0.004;
+    surf.position.copy(L(0, wetTop, 0));
+    surfMat.color.copy(upperMat.color).lerp(new THREE.Color(0xffffff), 0.3);
+    const p = surfGeo.attributes.position.array;
+    const amp = sInlet.m.visible ? 0.006 : (flowingUp ? 0.004 : 0.0008);
+    for (let i = 0; i < p.length; i += 3) {
+      const x = surfBase[i], z = surfBase[i + 2];
+      const d = Math.hypot(x, z + 0.11);
+      let y = amp * Math.sin(70 * d - 12 * t) * Math.exp(-12 * d);
+      if (flowingUp) y += amp * Math.sin(40 * x + 7 * t) * Math.cos(35 * z - 6 * t);
+      y += 0.0008 * Math.sin(30 * x + 2 * t);
+      p[i + 1] = y;
+    }
+    surfGeo.attributes.position.needsUpdate = true; surfGeo.computeVertexNormals();
+  }
+
+  // ---------- Ion exchange close-up (2D canvas) ----------
+  const ion = $('ion');
+  const ictx = ion.getContext('2d');
+  function sizeIon() { const r = Math.min(window.devicePixelRatio || 1, 2); ion.width = ion.clientWidth * r; ion.height = ion.clientHeight * r; }
+  sizeIon();
+  const ION = { Na: { c: '#8b6cff', r: 9, t: 'Na⁺' }, Ca: { c: '#ff8a3d', r: 12, t: 'Ca²⁺' }, Mg: { c: '#2fb47c', r: 11, t: 'Mg²⁺' } };
+  function drawIon(x, y, kind, a, s) {
+    const k = ION[kind]; s = s || 1;
+    ictx.globalAlpha = a == null ? 1 : a;
+    ictx.fillStyle = k.c; ictx.beginPath(); ictx.arc(x, y, k.r * s, 0, 7); ictx.fill();
+    ictx.fillStyle = '#fff'; ictx.font = `700 ${kind === 'Na' ? 8 : 8.5}px system-ui, sans-serif`; ictx.textAlign = 'center'; ictx.textBaseline = 'middle';
+    ictx.fillText(k.t, x, y + 0.5);
+    ictx.globalAlpha = 1;
+  }
+  const bg = Array.from({ length: 7 }, (_, i) => ({ x: Math.random() * 280, y: Math.random() * 210, vx: (Math.random() - 0.5) * 12, vy: (Math.random() - 0.5) * 12, k: i }));
+  let ionClock = 0;
+  function drawIonPanel(dt) {
+    const W = 280, H = 210, sc = ion.width / W;
+    ictx.setTransform(sc, 0, 0, sc, 0, 0);
+    ictx.clearRect(0, 0, W, H);
+    const mode = op;
+    const flowing = (mode === 'soft' || mode === 'regen') ? exchangeOn : flowingUp;
+    let bgCol = mode === 'regen' ? '#f4f8fb' : mode === 'back' ? '#e6efe9' : '#e7f3fb';
+    ictx.fillStyle = bgCol; ictx.beginPath(); ictx.roundRect ? ictx.roundRect(0, 0, W, H, 10) : ictx.rect(0, 0, W, H); ictx.fill();
+    if (!paused) ionClock += dt;
+
+    // background ions in the solution
+    for (const b of bg) {
+      if (!paused) { b.x += b.vx * dt; b.y += b.vy * dt + (flowing ? (mode === 'back' ? -14 : 14) * dt : 0); }
+      if (b.x < -15) b.x = W + 10; if (b.x > W + 15) b.x = -10; if (b.y < -15) b.y = H + 10; if (b.y > H + 15) b.y = -10;
+      let kind = mode === 'regen' ? 'Na' : (b.k % 3 === 0 ? 'Na' : b.k % 3 === 1 ? 'Ca' : 'Mg');
+      drawIon(b.x, b.y, kind, 0.28, 0.85);
+    }
+
+    const cx = 140, cy = 100, R = 50;
+    const e = layerL.reduce((a, b) => a + b, 0) / LAYERS;
+    const wob = mode === 'back' && flowing ? Math.sin(ionClock * 6) * 4 : 0;
+    const bxc = cx + wob, byc = cy + (mode === 'back' && flowing ? Math.cos(ionClock * 5) * 3 : 0);
+    const beadCol = FRESH.clone().lerp(EXHAUSTED, e);
+    const grd = ictx.createRadialGradient(bxc - 15, byc - 18, 5, bxc, byc, R);
+    grd.addColorStop(0, '#fff6c7'); grd.addColorStop(0.35, '#' + beadCol.getHexString()); grd.addColorStop(1, '#' + beadCol.clone().multiplyScalar(0.75).getHexString());
+    ictx.fillStyle = grd; ictx.beginPath(); ictx.arc(bxc, byc, R, 0, 7); ictx.fill();
+    ictx.fillStyle = 'rgba(60,40,0,0.55)'; ictx.font = '600 9px system-ui, sans-serif'; ictx.textAlign = 'center';
+    ictx.fillText('resin bead', bxc, byc + 3);
+
+    // 4 site pairs; bound count from overall exhaustion
+    const pairs = 4, angles = [-2.35, -0.8, 0.8, 2.35];
+    let bound = Math.round(e * pairs);
+    const cyc = 3.2, ph = (ionClock % cyc) / cyc;
+    let animPair = -1, animKind = null;
+    if (flowing && mode === 'soft' && bound < pairs) { animPair = bound; animKind = 'soft'; }
+    if (flowing && mode === 'regen' && e > 0.02) { if (bound < 1) bound = 1; animPair = bound - 1; animKind = 'regen'; }
+    for (let k = 0; k < pairs; k++) {
+      const a = angles[k];
+      const sx = bxc + Math.cos(a) * (R + 2), sy = byc + Math.sin(a) * (R + 2);
+      // sulfonate sites
+      for (const da of [-0.22, 0.22]) {
+        const qx = bxc + Math.cos(a + da) * (R - 6), qy = byc + Math.sin(a + da) * (R - 6);
+        ictx.fillStyle = '#5a3d00'; ictx.font = '700 7px system-ui, sans-serif'; ictx.fillText('SO₃⁻', qx, qy + 2);
+      }
+      const isBound = k < bound;
+      const naPos = [-0.24, 0.24].map(da => [bxc + Math.cos(a + da) * (R + 12), byc + Math.sin(a + da) * (R + 12)]);
+      const caPos = [bxc + Math.cos(a) * (R + 14), byc + Math.sin(a) * (R + 14)];
+      const div = k % 2 ? 'Mg' : 'Ca';
+      const ease = x => x * x * (3 - 2 * x);
+      if (k === animPair && animKind === 'soft') {
+        // Ca/Mg arrives, two Na leave
+        const inA = ease(Math.min(1, ph / 0.45));
+        const startX = sx + Math.cos(a) * 90, startY = sy + Math.sin(a) * 90 - 30;
+        drawIon(startX + (caPos[0] - startX) * inA, startY + (caPos[1] - startY) * inA, div, Math.min(1, inA * 3));
+        const outA = ease(Math.max(0, (ph - 0.45) / 0.55));
+        naPos.forEach(([nx, ny], i) => drawIon(nx + Math.cos(a + (i ? 0.5 : -0.5)) * 80 * outA, ny + Math.sin(a + (i ? 0.5 : -0.5)) * 80 * outA + 30 * outA, 'Na', 1 - outA));
+      } else if (k === animPair && animKind === 'regen') {
+        // two Na arrive, Ca/Mg leaves
+        const inA = ease(Math.min(1, ph / 0.45));
+        naPos.forEach(([nx, ny], i) => { const sx2 = nx + Math.cos(a + (i ? 0.5 : -0.5)) * 85, sy2 = ny + Math.sin(a + (i ? 0.5 : -0.5)) * 85 - 25; drawIon(sx2 + (nx - sx2) * inA, sy2 + (ny - sy2) * inA, 'Na', Math.min(1, inA * 3)); });
+        const outA = ease(Math.max(0, (ph - 0.45) / 0.55));
+        drawIon(caPos[0] + Math.cos(a) * 85 * outA, caPos[1] + Math.sin(a) * 85 * outA + 30 * outA, div, 1 - outA);
+      } else if (isBound) {
+        drawIon(caPos[0], caPos[1], div, 1);
+      } else {
+        naPos.forEach(([nx, ny]) => drawIon(nx, ny, 'Na', 1));
+      }
+    }
+
+    // debris washing off during backflush
+    if (mode === 'back' && flowing) {
+      for (let i = 0; i < 14; i++) {
+        const p = ((ionClock * 0.35 + i / 14) % 1);
+        const x = bxc + Math.sin(i * 2.3) * (R - 5) + Math.sin(ionClock * 2 + i) * 6;
+        const y = byc - R * 0.3 - p * 110;
+        ictx.globalAlpha = 1 - p; ictx.fillStyle = '#6b4a2a'; ictx.beginPath(); ictx.arc(x, y, 2.2 + (i % 3), 0, 7); ictx.fill();
+      }
+      ictx.globalAlpha = 1;
+    }
+
+    // caption
+    let cap = '';
+    if (!flowing) cap = 'No flow through the bed right now';
+    else if (mode === 'soft') cap = bound < pairs ? 'Ca²⁺ / Mg²⁺ bind to the resin, 2 Na⁺ released for each' : 'Resin exhausted: hardness passes through';
+    else if (mode === 'regen') cap = e > 0.02 ? 'Excess Na⁺ from brine displaces Ca²⁺ / Mg²⁺' : 'Resin fully regenerated (all Na⁺ form)';
+    else if (mode === 'back') cap = 'No exchange: bed expands, fines and debris wash out';
+    ictx.fillStyle = 'rgba(255,255,255,0.85)'; ictx.fillRect(0, H - 26, W, 26);
+    ictx.fillStyle = '#1d2733'; ictx.font = '600 10.5px system-ui, sans-serif'; ictx.textAlign = 'center';
+    ictx.fillText(cap, W / 2, H - 10);
+  }
+
+  // ---------- HUD ----------
+  function hud() {
+    const e = layerL.reduce((a, b) => a + b, 0) / LAYERS;
+    $('flow').textContent = Math.round(flowLmin / 8.5 * 100) + '%';
+    const capLeft = Math.round((1 - e) * 100);
+    $('cap').textContent = capLeft + '%';
+    $('capBar').style.width = capLeft + '%';
+    $('capBar').style.background = '#' + FRESH.clone().lerp(EXHAUSTED, e).getHexString();
+    const mode = op;
+    if (mode === 'soft') { $('outLbl').textContent = 'Outlet hardness (vs feed)'; $('outH').textContent = outFlow ? Math.round(cOut * 100) + '%' : '—'; }
+    else if (mode === 'regen') { $('outLbl').textContent = 'Ca/Mg in spent brine'; $('outH').textContent = outFlow ? (cOut > 0.02 && e > 0.02 ? 'high' : 'low') : '—'; }
+    else { $('outLbl').textContent = 'Outlet hardness'; $('outH').textContent = '—'; }
+    let w = '';
+    if (pumpState.t < 1) w = 'Moving pump to the ' + (pumpState.at === 'brine' ? 'brine' : 'hard water') + ' bucket…';
+    else if (!pumpOn) w = 'Pump is off.';
+    else if (flowLmin <= 0) w = 'Voltage too low: pump not delivering flow.';
+    else if (mode === 'soft' && cOut > 0.1) w = 'Hardness breakthrough: the resin needs regeneration.';
+    else if (mode === 'regen' && e < 0.02 && outFlow) w = 'Regeneration complete. Rinse/soften again.';
+    else if (sim.split) w = 'Flow divided: part drains through the faucet adaptor, part keeps going up.';
+    else if (!vs.sv && !vs.bv && pumpOn) w = 'Service and backflushing valves both closed: no flow.';
+    else if (wetTop >= MAX_LVL - 0.003) w = 'No open outlet: column full.';
+    else if (clearBox.level >= 0.94 && mode === 'soft') w = 'Softened-water container is full.';
+    $('warn').textContent = w;
+  }
+
+  // ---------- Loop ----------
+  setMode('soft');
+  const clock = new THREE.Clock();
+  let simT = 0, hudT = 0;
+  function frame() {
+    requestAnimationFrame(frame);
+    const dt = Math.min(clock.getDelta(), 0.05);
+    if (!paused) { simT += dt; sim(dt, simT); }
+    renderColumn(simT);
+    updateBeads(simT, flowingUp || expansion > 1.01 ? (expansion - 1) / 0.25 : 0);
+    controls.update();
+    renderer.render(scene, camera);
+    updateTags();
+    drawIonPanel(paused ? 0 : dt);
+    hudT += dt; if (hudT > 0.1) { hud(); hudT = 0; }
+  }
+  frame();
+
+  window.addEventListener('resize', () => {
+    camera.aspect = window.innerWidth / window.innerHeight; camera.updateProjectionMatrix();
+    renderer.setSize(window.innerWidth, window.innerHeight); sizeIon();
+  });
+})();
+</script>
+</body>
+</html>
